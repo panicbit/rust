@@ -501,6 +501,7 @@ pub mod heap;
 #[macro_use]
 mod sys_common;
 mod sys;
+mod pal;
 
 // Private support modules
 mod panicking;
