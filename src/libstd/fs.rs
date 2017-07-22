@@ -21,7 +21,8 @@ use fmt;
 use ffi::OsString;
 use io::{self, SeekFrom, Seek, Read, Initializer, Write};
 use path::{Path, PathBuf};
-use sys::fs as fs_imp;
+use sys::fs::Fs;
+use pal::fs::*;
 use sys_common::{AsInnerMut, FromInner, AsInner, IntoInner};
 use time::SystemTime;
 
@@ -87,7 +88,7 @@ use time::SystemTime;
 /// [`BufReader<R>`]: ../io/struct.BufReader.html
 #[stable(feature = "rust1", since = "1.0.0")]
 pub struct File {
-    inner: fs_imp::File,
+    inner: <Fs as FsPal>::File,
 }
 
 /// Metadata information about a file.
@@ -101,7 +102,7 @@ pub struct File {
 /// [`symlink_metadata`]: fn.symlink_metadata.html
 #[stable(feature = "rust1", since = "1.0.0")]
 #[derive(Clone)]
-pub struct Metadata(fs_imp::FileAttr);
+pub struct Metadata(<Fs as FsPal>::Metadata);
 
 /// Iterator over the entries in a directory.
 ///
@@ -121,7 +122,7 @@ pub struct Metadata(fs_imp::FileAttr);
 /// [`Err`]: ../result/enum.Result.html#variant.Err
 #[stable(feature = "rust1", since = "1.0.0")]
 #[derive(Debug)]
-pub struct ReadDir(fs_imp::ReadDir);
+pub struct ReadDir(<Fs as FsPal>::ReadDir);
 
 /// Entries returned by the [`ReadDir`] iterator.
 ///
@@ -131,7 +132,7 @@ pub struct ReadDir(fs_imp::ReadDir);
 /// filesystem. Each entry can be inspected via methods to learn about the full
 /// path or possibly other metadata through per-platform extension traits.
 #[stable(feature = "rust1", since = "1.0.0")]
-pub struct DirEntry(fs_imp::DirEntry);
+pub struct DirEntry(<Fs as FsPal>::DirEntry);
 
 /// Options and flags which can be used to configure how a file is opened.
 ///
@@ -179,7 +180,7 @@ pub struct DirEntry(fs_imp::DirEntry);
 /// ```
 #[derive(Clone, Debug)]
 #[stable(feature = "rust1", since = "1.0.0")]
-pub struct OpenOptions(fs_imp::OpenOptions);
+pub struct OpenOptions(<Fs as FsPal>::OpenOptions);
 
 /// Representation of the various permissions on a file.
 ///
@@ -191,7 +192,7 @@ pub struct OpenOptions(fs_imp::OpenOptions);
 /// [`readonly`]: struct.Permissions.html#method.readonly
 #[derive(Clone, PartialEq, Eq, Debug)]
 #[stable(feature = "rust1", since = "1.0.0")]
-pub struct Permissions(fs_imp::FilePermissions);
+pub struct Permissions(<Fs as FsPal>::Permissions);
 
 /// A structure representing a type of file with accessors for each file type.
 /// It is returned by [`Metadata::file_type`] method.
@@ -199,7 +200,7 @@ pub struct Permissions(fs_imp::FilePermissions);
 /// [`Metadata::file_type`]: struct.Metadata.html#method.file_type
 #[stable(feature = "file_type", since = "1.1.0")]
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct FileType(fs_imp::FileType);
+pub struct FileType(<Fs as FsPal>::FileType);
 
 /// A builder used to create directories in various manners.
 ///
@@ -207,7 +208,7 @@ pub struct FileType(fs_imp::FileType);
 #[stable(feature = "dir_builder", since = "1.6.0")]
 #[derive(Debug)]
 pub struct DirBuilder {
-    inner: fs_imp::DirBuilder,
+    inner: <Fs as FsPal>::DirBuilder,
     recursive: bool,
 }
 
@@ -283,7 +284,7 @@ impl File {
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn sync_all(&self) -> io::Result<()> {
-        self.inner.fsync()
+        self.inner.sync_all()
     }
 
     /// This function is similar to [`sync_all`], except that it may not
@@ -314,7 +315,7 @@ impl File {
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn sync_data(&self) -> io::Result<()> {
-        self.inner.datasync()
+        self.inner.sync_data()
     }
 
     /// Truncates or extends the underlying file, updating the size of
@@ -342,7 +343,7 @@ impl File {
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn set_len(&self, size: u64) -> io::Result<()> {
-        self.inner.truncate(size)
+        self.inner.set_len(size)
     }
 
     /// Queries metadata about the underlying file.
@@ -360,7 +361,7 @@ impl File {
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn metadata(&self) -> io::Result<Metadata> {
-        self.inner.file_attr().map(Metadata)
+        self.inner.metadata().map(Metadata)
     }
 
     /// Creates a new independently owned handle to the underlying file.
@@ -383,7 +384,7 @@ impl File {
     #[stable(feature = "file_try_clone", since = "1.9.0")]
     pub fn try_clone(&self) -> io::Result<File> {
         Ok(File {
-            inner: self.inner.duplicate()?
+            inner: self.inner.try_clone()?
         })
     }
 
@@ -422,16 +423,18 @@ impl File {
     }
 }
 
-impl AsInner<fs_imp::File> for File {
-    fn as_inner(&self) -> &fs_imp::File { &self.inner }
+impl AsInner<<Fs as FsPal>::File> for File {
+    fn as_inner(&self) -> &<Fs as FsPal>::File { &self.inner }
 }
-impl FromInner<fs_imp::File> for File {
-    fn from_inner(f: fs_imp::File) -> File {
+
+impl FromInner<<Fs as FsPal>::File> for File {
+    fn from_inner(f: <Fs as FsPal>::File) -> File {
         File { inner: f }
     }
 }
-impl IntoInner<fs_imp::File> for File {
-    fn into_inner(self) -> fs_imp::File {
+
+impl IntoInner<<Fs as FsPal>::File> for File {
+    fn into_inner(self) -> <Fs as FsPal>::File {
         self.inner
     }
 }
@@ -483,7 +486,10 @@ impl<'a> Write for &'a File {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.inner.write(buf)
     }
-    fn flush(&mut self) -> io::Result<()> { self.inner.flush() }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
 }
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<'a> Seek for &'a File {
@@ -507,7 +513,7 @@ impl OpenOptions {
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn new() -> OpenOptions {
-        OpenOptions(fs_imp::OpenOptions::new())
+        OpenOptions(OpenOptionsPal::new())
     }
 
     /// Sets the option for read access.
@@ -717,13 +723,13 @@ impl OpenOptions {
     }
 
     fn _open(&self, path: &Path) -> io::Result<File> {
-        let inner = fs_imp::File::open(path, &self.0)?;
+        let inner = FilePal::open(path, &self.0)?;
         Ok(File { inner: inner })
     }
 }
 
-impl AsInnerMut<fs_imp::OpenOptions> for OpenOptions {
-    fn as_inner_mut(&mut self) -> &mut fs_imp::OpenOptions { &mut self.0 }
+impl AsInnerMut<<Fs as FsPal>::OpenOptions> for OpenOptions {
+    fn as_inner_mut(&mut self) -> &mut <Fs as FsPal>::OpenOptions { &mut self.0 }
 }
 
 impl Metadata {
@@ -795,7 +801,7 @@ impl Metadata {
     /// # }
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
-    pub fn len(&self) -> u64 { self.0.size() }
+    pub fn len(&self) -> u64 { self.0.len() }
 
     /// Returns the permissions of the file this metadata is for.
     ///
@@ -813,7 +819,7 @@ impl Metadata {
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn permissions(&self) -> Permissions {
-        Permissions(self.0.perm())
+        Permissions(self.0.permissions())
     }
 
     /// Returns the last modification time listed in this metadata.
@@ -929,8 +935,8 @@ impl fmt::Debug for Metadata {
     }
 }
 
-impl AsInner<fs_imp::FileAttr> for Metadata {
-    fn as_inner(&self) -> &fs_imp::FileAttr { &self.0 }
+impl AsInner<<Fs as FsPal>::Metadata> for Metadata {
+    fn as_inner(&self) -> &<Fs as FsPal>::Metadata { &self.0 }
 }
 
 impl Permissions {
@@ -1054,18 +1060,18 @@ impl FileType {
     pub fn is_symlink(&self) -> bool { self.0.is_symlink() }
 }
 
-impl AsInner<fs_imp::FileType> for FileType {
-    fn as_inner(&self) -> &fs_imp::FileType { &self.0 }
+impl AsInner<<Fs as FsPal>::FileType> for FileType {
+    fn as_inner(&self) -> &<Fs as FsPal>::FileType { &self.0 }
 }
 
-impl FromInner<fs_imp::FilePermissions> for Permissions {
-    fn from_inner(f: fs_imp::FilePermissions) -> Permissions {
+impl FromInner<<Fs as FsPal>::Permissions> for Permissions {
+    fn from_inner(f: <Fs as FsPal>::Permissions) -> Permissions {
         Permissions(f)
     }
 }
 
-impl AsInner<fs_imp::FilePermissions> for Permissions {
-    fn as_inner(&self) -> &fs_imp::FilePermissions { &self.0 }
+impl AsInner<<Fs as FsPal>::Permissions> for Permissions {
+    fn as_inner(&self) -> &<Fs as FsPal>::Permissions { &self.0 }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -1210,8 +1216,8 @@ impl fmt::Debug for DirEntry {
     }
 }
 
-impl AsInner<fs_imp::DirEntry> for DirEntry {
-    fn as_inner(&self) -> &fs_imp::DirEntry { &self.0 }
+impl AsInner<<Fs as FsPal>::DirEntry> for DirEntry {
+    fn as_inner(&self) -> &<Fs as FsPal>::DirEntry { &self.0 }
 }
 
 /// Removes a file from the filesystem.
@@ -1248,7 +1254,7 @@ impl AsInner<fs_imp::DirEntry> for DirEntry {
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
 pub fn remove_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
-    fs_imp::unlink(path.as_ref())
+    Fs::remove_file(path.as_ref())
 }
 
 /// Given a path, query the file system to get information about a file,
@@ -1286,7 +1292,7 @@ pub fn remove_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
 pub fn metadata<P: AsRef<Path>>(path: P) -> io::Result<Metadata> {
-    fs_imp::stat(path.as_ref()).map(Metadata)
+    Fs::metadata(path.as_ref()).map(Metadata)
 }
 
 /// Query the metadata about a file without following symlinks.
@@ -1320,7 +1326,7 @@ pub fn metadata<P: AsRef<Path>>(path: P) -> io::Result<Metadata> {
 /// ```
 #[stable(feature = "symlink_metadata", since = "1.1.0")]
 pub fn symlink_metadata<P: AsRef<Path>>(path: P) -> io::Result<Metadata> {
-    fs_imp::lstat(path.as_ref()).map(Metadata)
+    Fs::symlink_metadata(path.as_ref()).map(Metadata)
 }
 
 /// Rename a file or directory to a new name, replacing the original file if
@@ -1363,7 +1369,7 @@ pub fn symlink_metadata<P: AsRef<Path>>(path: P) -> io::Result<Metadata> {
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
 pub fn rename<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> io::Result<()> {
-    fs_imp::rename(from.as_ref(), to.as_ref())
+    Fs::rename(from.as_ref(), to.as_ref())
 }
 
 /// Copies the contents of one file to another. This function will also
@@ -1410,7 +1416,7 @@ pub fn rename<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> io::Result<()> 
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
 pub fn copy<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> io::Result<u64> {
-    fs_imp::copy(from.as_ref(), to.as_ref())
+    Fs::copy(from.as_ref(), to.as_ref())
 }
 
 /// Creates a new hard link on the filesystem.
@@ -1445,7 +1451,7 @@ pub fn copy<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> io::Result<u64> {
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
 pub fn hard_link<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()> {
-    fs_imp::link(src.as_ref(), dst.as_ref())
+    Fs::hard_link(src.as_ref(), dst.as_ref())
 }
 
 /// Creates a new symbolic link on the filesystem.
@@ -1471,7 +1477,7 @@ pub fn hard_link<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<(
              reason = "replaced with std::os::unix::fs::symlink and \
                        std::os::windows::fs::{symlink_file, symlink_dir}")]
 pub fn soft_link<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()> {
-    fs_imp::symlink(src.as_ref(), dst.as_ref())
+    Fs::soft_link(src.as_ref(), dst.as_ref())
 }
 
 /// Reads a symbolic link, returning the file that the link points to.
@@ -1505,7 +1511,7 @@ pub fn soft_link<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<(
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
 pub fn read_link<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
-    fs_imp::readlink(path.as_ref())
+    Fs::read_link(path.as_ref())
 }
 
 /// Returns the canonical form of a path with all intermediate components
@@ -1539,7 +1545,7 @@ pub fn read_link<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
 /// ```
 #[stable(feature = "fs_canonicalize", since = "1.5.0")]
 pub fn canonicalize<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
-    fs_imp::canonicalize(path.as_ref())
+    Fs::canonicalize(path.as_ref())
 }
 
 /// Creates a new, empty directory at the provided path
@@ -1647,7 +1653,7 @@ pub fn create_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
 pub fn remove_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
-    fs_imp::rmdir(path.as_ref())
+    Fs::remove_dir(path.as_ref())
 }
 
 /// Removes a directory at this path, after removing all its contents. Use
@@ -1681,7 +1687,7 @@ pub fn remove_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
 pub fn remove_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
-    fs_imp::remove_dir_all(path.as_ref())
+    Fs::remove_dir_all(path.as_ref())
 }
 
 /// Returns an iterator over the entries within a directory.
@@ -1734,7 +1740,7 @@ pub fn remove_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
 pub fn read_dir<P: AsRef<Path>>(path: P) -> io::Result<ReadDir> {
-    fs_imp::readdir(path.as_ref()).map(ReadDir)
+    Fs::read_dir(path.as_ref()).map(ReadDir)
 }
 
 /// Changes the permissions found on a file or a directory.
@@ -1770,7 +1776,7 @@ pub fn read_dir<P: AsRef<Path>>(path: P) -> io::Result<ReadDir> {
 #[stable(feature = "set_permissions", since = "1.1.0")]
 pub fn set_permissions<P: AsRef<Path>>(path: P, perm: Permissions)
                                        -> io::Result<()> {
-    fs_imp::set_perm(path.as_ref(), perm.0)
+    Fs::set_permissions(path.as_ref(), perm.0)
 }
 
 impl DirBuilder {
@@ -1787,7 +1793,7 @@ impl DirBuilder {
     #[stable(feature = "dir_builder", since = "1.6.0")]
     pub fn new() -> DirBuilder {
         DirBuilder {
-            inner: fs_imp::DirBuilder::new(),
+            inner: DirBuilderPal::new(),
             recursive: false,
         }
     }
@@ -1839,7 +1845,7 @@ impl DirBuilder {
         if self.recursive {
             self.create_dir_all(path)
         } else {
-            self.inner.mkdir(path)
+            self.inner.create(path)
         }
     }
 
@@ -1848,7 +1854,7 @@ impl DirBuilder {
             return Ok(())
         }
 
-        match self.inner.mkdir(path) {
+        match self.inner.create(path) {
             Ok(()) => return Ok(()),
             Err(ref e) if e.kind() == io::ErrorKind::NotFound => {}
             Err(_) if path.is_dir() => return Ok(()),
@@ -1858,7 +1864,7 @@ impl DirBuilder {
             Some(p) => try!(self.create_dir_all(p)),
             None => return Err(io::Error::new(io::ErrorKind::Other, "failed to create whole tree")),
         }
-        match self.inner.mkdir(path) {
+        match self.inner.create(path) {
             Ok(()) => Ok(()),
             Err(_) if path.is_dir() => Ok(()),
             Err(e) => Err(e),
@@ -1866,8 +1872,8 @@ impl DirBuilder {
     }
 }
 
-impl AsInnerMut<fs_imp::DirBuilder> for DirBuilder {
-    fn as_inner_mut(&mut self) -> &mut fs_imp::DirBuilder {
+impl AsInnerMut<<Fs as FsPal>::DirBuilder> for DirBuilder {
+    fn as_inner_mut(&mut self) -> &mut <Fs as FsPal>::DirBuilder {
         &mut self.inner
     }
 }

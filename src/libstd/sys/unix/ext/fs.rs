@@ -16,9 +16,10 @@ use fs::{self, Permissions, OpenOptions};
 use io;
 use libc;
 use path::Path;
-use sys;
 use sys_common::{FromInner, AsInner, AsInnerMut};
 use sys::platform::fs::MetadataExt as UnixMetadataExt;
+use sys::fs::Fs;
+use pal::fs::*;
 
 /// Unix-specific extensions to [`File`].
 ///
@@ -698,7 +699,7 @@ impl DirEntryExt for fs::DirEntry {
 #[stable(feature = "symlink", since = "1.1.0")]
 pub fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()>
 {
-    sys::fs::symlink(src.as_ref(), dst.as_ref())
+    Fs::soft_link(src.as_ref(), dst.as_ref())
 }
 
 #[stable(feature = "dir_builder", since = "1.6.0")]

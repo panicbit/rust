@@ -19,6 +19,7 @@ use libc::{self, c_int, gid_t, uid_t, c_char};
 use ptr;
 use sys::fd::FileDesc;
 use sys::fs::{File, OpenOptions};
+use pal::fs::*;
 use sys::pipe::{self, AnonPipe};
 
 ////////////////////////////////////////////////////////////////////////////////

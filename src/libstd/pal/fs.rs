@@ -14,7 +14,7 @@ use fmt::Debug;
 use path::{Path,PathBuf};
 use ffi::OsString;
 
-pub(crate) trait FsPal {
+pub trait FsPal {
     type File: FilePal<Self>;
     type Metadata: MetadataPal<Self>;
     type FileType: FileTypePal;
@@ -40,7 +40,7 @@ pub(crate) trait FsPal {
     fn set_permissions(path: &Path, perm: Self::Permissions) -> io::Result<()>;
 }
 
-pub(crate) trait FilePal<Fs: FsPal + ?Sized>: Sized + Debug {
+pub trait FilePal<Fs: FsPal + ?Sized>: Sized + Debug {
     fn open(path: &Path, options: &Fs::OpenOptions) -> io::Result<Self>;
     fn read(&self, buf: &mut [u8]) -> io::Result<usize>;
     fn write(&self, buf: &[u8]) -> io::Result<usize>;
@@ -54,7 +54,7 @@ pub(crate) trait FilePal<Fs: FsPal + ?Sized>: Sized + Debug {
     fn set_permissions(&self, perm: Fs::Permissions) -> io::Result<()>;
 }
 
-pub(crate) trait MetadataPal<Fs: FsPal + ?Sized>: Clone {
+pub trait MetadataPal<Fs: FsPal + ?Sized>: Clone {
     fn file_type(&self) -> Fs::FileType;
     fn len(&self) -> u64;
     fn permissions(&self) -> Fs::Permissions;
@@ -63,18 +63,18 @@ pub(crate) trait MetadataPal<Fs: FsPal + ?Sized>: Clone {
     fn created(&self) -> io::Result<Fs::SystemTime>;
 }
 
-pub(crate) trait FileTypePal {
+pub trait FileTypePal {
     fn is_dir(&self) -> bool;
     fn is_file(&self) -> bool;
     fn is_symlink(&self) -> bool;
 }
 
-pub(crate) trait PermissionsPal {
+pub trait PermissionsPal {
     fn readonly(&self) -> bool;
     fn set_readonly(&mut self, readonly: bool);
 }
 
-pub(crate) trait OpenOptionsPal: Clone + Debug {
+pub trait OpenOptionsPal: Clone + Debug {
     fn new() -> Self;
     fn read(&mut self, read: bool);
     fn write(&mut self, write: bool);
@@ -84,12 +84,12 @@ pub(crate) trait OpenOptionsPal: Clone + Debug {
     fn create_new(&mut self, create_new: bool);
 }
 
-pub(crate) trait DirBuilderPal {
+pub trait DirBuilderPal {
     fn new() -> Self;
     fn create(&self, path: &Path) -> io::Result<()>;
 }
 
-pub(crate) trait DirEntryPal<Fs: FsPal + ?Sized> {
+pub trait DirEntryPal<Fs: FsPal + ?Sized> {
     fn path(&self) -> PathBuf;
     fn metadata(&self) -> io::Result<Fs::Metadata>;
     fn file_type(&self) -> io::Result<Fs::FileType>;
