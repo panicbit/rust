@@ -380,12 +380,12 @@ impl OpenOptionsPal for OpenOptions {
 }
 
 impl OpenOptions {
-    pub fn custom_flags(&mut self, flags: u32) { self.custom_flags = flags; }
-    pub fn access_mode(&mut self, access_mode: u32) { self.access_mode = Some(access_mode); }
-    pub fn share_mode(&mut self, share_mode: u32) { self.share_mode = share_mode; }
-    pub fn attributes(&mut self, attrs: u32) { self.attributes = attrs; }
-    pub fn security_qos_flags(&mut self, flags: u32) { self.security_qos_flags = flags; }
-    pub fn security_attributes(&mut self, attrs: c::LPSECURITY_ATTRIBUTES) {
+    pub(in super) fn custom_flags(&mut self, flags: u32) { self.custom_flags = flags; }
+    pub(in super) fn access_mode(&mut self, access_mode: u32) { self.access_mode = Some(access_mode); }
+    pub(in super) fn share_mode(&mut self, share_mode: u32) { self.share_mode = share_mode; }
+    pub(in super) fn attributes(&mut self, attrs: u32) { self.attributes = attrs; }
+    pub(in super) fn security_qos_flags(&mut self, flags: u32) { self.security_qos_flags = flags; }
+    pub(in super) fn security_attributes(&mut self, attrs: c::LPSECURITY_ATTRIBUTES) {
         self.security_attributes = attrs as usize;
     }
 
@@ -558,17 +558,17 @@ impl FilePal<Fs> for File {
 }
 
 impl File {
-    pub fn read_at(&self, buf: &mut [u8], offset: u64) -> io::Result<usize> {
+    pub(in super) fn read_at(&self, buf: &mut [u8], offset: u64) -> io::Result<usize> {
         self.handle.read_at(buf, offset)
     }
 
-    pub fn write_at(&self, buf: &[u8], offset: u64) -> io::Result<usize> {
+    pub(in super) fn write_at(&self, buf: &[u8], offset: u64) -> io::Result<usize> {
         self.handle.write_at(buf, offset)
     }
 
-    pub fn handle(&self) -> &Handle { &self.handle }
+    pub(in super) fn handle(&self) -> &Handle { &self.handle }
 
-    pub fn into_handle(self) -> Handle { self.handle }
+    pub(in super) fn into_handle(self) -> Handle { self.handle }
 
     fn reparse_point<'a>(&self,
                          space: &'a mut [u8; c::MAXIMUM_REPARSE_DATA_BUFFER_SIZE])
@@ -670,17 +670,17 @@ impl MetadataPal<Fs> for FileAttr {
 }
 
 impl FileAttr {
-    pub fn attrs(&self) -> u32 { self.attributes as u32 }
+    pub(in super) fn attrs(&self) -> u32 { self.attributes as u32 }
 
-    pub fn modified_u64(&self) -> u64 {
+    pub(in super) fn modified_u64(&self) -> u64 {
         to_u64(&self.last_write_time)
     }
 
-    pub fn accessed_u64(&self) -> u64 {
+    pub(in super) fn accessed_u64(&self) -> u64 {
         to_u64(&self.last_access_time)
     }
 
-    pub fn created_u64(&self) -> u64 {
+    pub(in super) fn created_u64(&self) -> u64 {
         to_u64(&self.creation_time)
     }
 
@@ -726,7 +726,7 @@ impl FileType {
         }
     }
 
-    pub fn is_symlink_dir(&self) -> bool {
+    fn is_symlink_dir(&self) -> bool {
         *self == FileType::SymlinkDir || *self == FileType::MountPoint
     }
 }
@@ -746,7 +746,7 @@ fn remove_dir_all_recursive(path: &Path) -> io::Result<()> {
     Fs::remove_dir(path)
 }
 
-pub fn symlink_inner(src: &Path, dst: &Path, dir: bool) -> io::Result<()> {
+pub(in super) fn symlink_inner(src: &Path, dst: &Path, dir: bool) -> io::Result<()> {
     let src = to_u16s(src)?;
     let dst = to_u16s(dst)?;
     let flags = if dir { c::SYMBOLIC_LINK_FLAG_DIRECTORY } else { 0 };
@@ -782,7 +782,7 @@ fn get_path(f: &File) -> io::Result<PathBuf> {
 }
 
 #[allow(dead_code)]
-pub fn symlink_junction<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()> {
+fn symlink_junction<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()> {
     symlink_junction_inner(src.as_ref(), dst.as_ref())
 }
 
