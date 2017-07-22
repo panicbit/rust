@@ -22,6 +22,7 @@ use sys::c;
 use sys::fs::{File, OpenOptions};
 use sys::handle::Handle;
 use sys::hashmap_random_keys;
+use pal::fs::*;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Anonymous pipes

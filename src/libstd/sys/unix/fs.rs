@@ -270,21 +270,21 @@ impl MetadataPal<Fs> for FileAttr {
 
 #[cfg(target_os = "netbsd")]
 impl FileAttr {
-    pub fn modified(&self) -> io::Result<SystemTime> {
+    fn modified(&self) -> io::Result<SystemTime> {
         Ok(SystemTime::from(libc::timespec {
             tv_sec: self.stat.st_mtime as libc::time_t,
             tv_nsec: self.stat.st_mtimensec as libc::c_long,
         }))
     }
 
-    pub fn accessed(&self) -> io::Result<SystemTime> {
+    fn accessed(&self) -> io::Result<SystemTime> {
         Ok(SystemTime::from(libc::timespec {
             tv_sec: self.stat.st_atime as libc::time_t,
             tv_nsec: self.stat.st_atimensec as libc::c_long,
         }))
     }
 
-    pub fn created(&self) -> io::Result<SystemTime> {
+    fn created(&self) -> io::Result<SystemTime> {
         Ok(SystemTime::from(libc::timespec {
             tv_sec: self.stat.st_birthtime as libc::time_t,
             tv_nsec: self.stat.st_birthtimensec as libc::c_long,
@@ -294,14 +294,14 @@ impl FileAttr {
 
 #[cfg(not(target_os = "netbsd"))]
 impl FileAttr {
-    pub fn modified(&self) -> io::Result<SystemTime> {
+    fn modified(&self) -> io::Result<SystemTime> {
         Ok(SystemTime::from(libc::timespec {
             tv_sec: self.stat.st_mtime as libc::time_t,
             tv_nsec: self.stat.st_mtime_nsec as _,
         }))
     }
 
-    pub fn accessed(&self) -> io::Result<SystemTime> {
+    fn accessed(&self) -> io::Result<SystemTime> {
         Ok(SystemTime::from(libc::timespec {
             tv_sec: self.stat.st_atime as libc::time_t,
             tv_nsec: self.stat.st_atime_nsec as _,
@@ -313,7 +313,7 @@ impl FileAttr {
               target_os = "openbsd",
               target_os = "macos",
               target_os = "ios"))]
-    pub fn created(&self) -> io::Result<SystemTime> {
+    fn created(&self) -> io::Result<SystemTime> {
         Ok(SystemTime::from(libc::timespec {
             tv_sec: self.stat.st_birthtime as libc::time_t,
             tv_nsec: self.stat.st_birthtime_nsec as libc::c_long,
@@ -325,7 +325,7 @@ impl FileAttr {
                   target_os = "openbsd",
                   target_os = "macos",
                   target_os = "ios")))]
-    pub fn created(&self) -> io::Result<SystemTime> {
+    fn created(&self) -> io::Result<SystemTime> {
         Err(io::Error::new(io::ErrorKind::Other,
                            "creation time is not available on this platform \
                             currently"))
@@ -354,7 +354,7 @@ impl PermissionsPal for FilePermissions {
 }
 
 impl FilePermissions {
-    pub fn mode(&self) -> u32 { self.mode as u32 }
+    pub(in super) fn mode(&self) -> u32 { self.mode as u32 }
 }
 
 impl FileTypePal for FileType {
@@ -364,7 +364,7 @@ impl FileTypePal for FileType {
 }
 
 impl FileType {
-    pub fn is(&self, mode: mode_t) -> bool { self.mode & libc::S_IFMT == mode }
+    pub(in super) fn is(&self, mode: mode_t) -> bool { self.mode & libc::S_IFMT == mode }
 }
 
 impl FromInner<u32> for FilePermissions {
@@ -492,7 +492,7 @@ impl DirEntry {
               target_os = "haiku",
               target_os = "l4re",
               target_os = "fuchsia"))]
-    pub fn ino(&self) -> u64 {
+    pub(in super) fn ino(&self) -> u64 {
         self.entry.d_ino as u64
     }
 
@@ -501,7 +501,7 @@ impl DirEntry {
               target_os = "bitrig",
               target_os = "netbsd",
               target_os = "dragonfly"))]
-    pub fn ino(&self) -> u64 {
+    pub(in super) fn ino(&self) -> u64 {
         self.entry.d_fileno as u64
     }
 
@@ -560,8 +560,8 @@ impl OpenOptionsPal for OpenOptions {
 }
 
 impl OpenOptions {
-    pub fn custom_flags(&mut self, flags: i32) { self.custom_flags = flags; }
-    pub fn mode(&mut self, mode: u32) { self.mode = mode as mode_t; }
+    pub(in super) fn custom_flags(&mut self, flags: i32) { self.custom_flags = flags; }
+    pub(in super) fn mode(&mut self, mode: u32) { self.mode = mode as mode_t; }
 
     fn get_access_mode(&self) -> io::Result<c_int> {
         match (self.read, self.write, self.append) {
@@ -680,7 +680,7 @@ impl FilePal<Fs> for File {
 }
 
 impl File {
-    pub fn open_c(path: &CStr, opts: &OpenOptions) -> io::Result<File> {
+    pub(in super) fn open_c(path: &CStr, opts: &OpenOptions) -> io::Result<File> {
         let flags = libc::O_CLOEXEC |
                     opts.get_access_mode()? |
                     opts.get_creation_mode()? |
@@ -704,17 +704,17 @@ impl File {
         Ok(File(fd))
     }
 
-    pub fn read_at(&self, buf: &mut [u8], offset: u64) -> io::Result<usize> {
+    pub(in super) fn read_at(&self, buf: &mut [u8], offset: u64) -> io::Result<usize> {
         self.0.read_at(buf, offset)
     }
 
-    pub fn write_at(&self, buf: &[u8], offset: u64) -> io::Result<usize> {
+    pub(in super) fn write_at(&self, buf: &[u8], offset: u64) -> io::Result<usize> {
         self.0.write_at(buf, offset)
     }
 
-    pub fn fd(&self) -> &FileDesc { &self.0 }
+    pub(in super) fn fd(&self) -> &FileDesc { &self.0 }
 
-    pub fn into_fd(self) -> FileDesc { self.0 }
+    pub(in super) fn into_fd(self) -> FileDesc { self.0 }
 }
 
 impl DirBuilderPal for DirBuilder {
@@ -730,7 +730,7 @@ impl DirBuilderPal for DirBuilder {
 }
 
 impl DirBuilder {
-    pub fn set_mode(&mut self, mode: u32) {
+    pub(in super) fn set_mode(&mut self, mode: u32) {
         self.mode = mode as mode_t;
     }
 }
