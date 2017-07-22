@@ -17,6 +17,7 @@ use io;
 use path::Path;
 use sys;
 use sys_common::{AsInnerMut, AsInner};
+use pal::fs::*;
 
 /// Windows-specific extensions to [`File`].
 ///
@@ -442,7 +443,7 @@ impl MetadataExt for Metadata {
     fn creation_time(&self) -> u64 { self.as_inner().created_u64() }
     fn last_access_time(&self) -> u64 { self.as_inner().accessed_u64() }
     fn last_write_time(&self) -> u64 { self.as_inner().modified_u64() }
-    fn file_size(&self) -> u64 { self.as_inner().size() }
+    fn file_size(&self) -> u64 { self.as_inner().len() }
 }
 
 /// Creates a new file symbolic link on the filesystem.

@@ -30,6 +30,7 @@ use sys::pipe::{self, AnonPipe};
 use sys::stdio;
 use sys::{self, cvt};
 use sys_common::{AsInner, FromInner};
+use pal::fs::*;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Command
