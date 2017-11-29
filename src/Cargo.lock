@@ -2165,8 +2165,17 @@ dependencies = [
  "rustc_lsan 0.0.0",
  "rustc_msan 0.0.0",
  "rustc_tsan 0.0.0",
+ "std_ascii 0.0.0",
  "std_unicode 0.0.0",
  "unwind 0.0.0",
+]
+
+[[package]]
+name = "std_ascii"
+version = "0.0.0"
+dependencies = [
+ "alloc 0.0.0",
+ "core 0.0.0",
 ]
 
 [[package]]

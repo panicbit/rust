@@ -361,6 +361,7 @@ extern crate core as __core;
 extern crate alloc;
 extern crate alloc_system;
 extern crate std_unicode;
+extern crate std_ascii;
 #[doc(masked)]
 extern crate libc;
 
