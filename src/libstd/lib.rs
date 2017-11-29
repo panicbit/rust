@@ -362,6 +362,7 @@ extern crate alloc;
 extern crate alloc_system;
 extern crate std_unicode;
 extern crate std_ascii;
+extern crate std_error;
 #[doc(masked)]
 extern crate libc;
 
